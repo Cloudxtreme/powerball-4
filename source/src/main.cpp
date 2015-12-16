@@ -14,29 +14,42 @@ using namespace io;
 class MotionState : public btMotionState
 {
 protected:
-    btTransform m_InitialPosition;
-    ISceneNode *m_Node;
+  btTransform m_InitialPosition;
+  ISceneNode *node;
 
 public:
-    MotionState(const btTransform &initialPosition,
-                ISceneNode *node) : m_InitialPosition(initialPosition),
-                                    m_Node(node) {
-    }
+  MotionState(const btTransform &initialPosition,
+              ISceneNode *node) : m_InitialPosition(initialPosition),
+                                  node(node) {
+  }
 
-    void getWorldTransform(btTransform &worldTrans) const
-    {
-        worldTrans = m_InitialPosition;
-    }
+  void getWorldTransform(btTransform &worldTrans) const
+  {
+      worldTrans = m_InitialPosition;
+  }
 
-    void setWorldTransform(const btTransform &worldTrans)
-    {
-        if(m_Node == nullptr) return;
+  void setWorldTransform(const btTransform &worldTrans)
+  {
+      if(this->node == nullptr) return;
 
-        // btQuaternion rot = worldTrans.getRotation();
-        // mSceneNode ->setOrientation(rot.w(), rot.x(), rot.y(), rot.z());
-        // btVector3 pos = worldTrans.getOrigin();
-        // mSceneNode ->setPosition(pos.x(), pos.y(), pos.z());
-    }
+      btQuaternion rot = worldTrans.getRotation();
+
+
+      btVector3 pos = worldTrans.getOrigin();
+      this->node->setPosition(toIrrlicht(pos));
+  }
+private:
+  vector3df toIrrlicht(btVector3 vec) {
+    return vector3df(vec.getX(), vec.getY(), vec.getZ());
+  }
+
+  vector3df toIrrlicht(btQuaternion quat) {
+    quaternion q = quaternion(quat.getX(), quat.getY(), quat.getZ(), quat.getW());
+
+    vector3df euler;
+    q.toEuler(euler);
+    return euler;
+  }
 };
 
 
