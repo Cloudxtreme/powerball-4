@@ -15,6 +15,7 @@ namespace {
   const float STEP = 1.0/1000.0;
 
   const float WINKY_MASS = 1.0;
+  const btVector3 GRAVITY(0,-3,0);
 }
 
 class MotionState : public btMotionState
@@ -82,14 +83,9 @@ int main() {
   btSequentialImpulseConstraintSolver *solver = new btSequentialImpulseConstraintSolver();
   world = new btDiscreteDynamicsWorld(dispatcher, broadPhase, solver, collisionConfiguration);
 
-  world->setGravity(btVector3(0, -9.81, 0));
+  world->setGravity(GRAVITY);
 
   btCollisionShape *winkyShape = new btSphereShape(1);
-
-  btDefaultMotionState *groundState =
-    new btDefaultMotionState(btTransform(
-        btQuaternion(0,0,0,1),
-        btVector3(0, -1, 0)));
 
   if (!device) return 1;
 
@@ -99,13 +95,57 @@ int main() {
   IGUIEnvironment *gui = device->getGUIEnvironment();
 
   IAnimatedMesh *mesh = smgr->getMesh("/Users/dylanmckay/winky.obj");
+  IAnimatedMesh *groundMesh = smgr->getMesh("/Users/dylanmckay/Desktop/map.3ds");
 
-  if (!mesh) {
+  if (!mesh || !groundMesh) {
     device->drop();
     return 1;
   }
 
   IAnimatedMeshSceneNode *winkyNode = smgr->addAnimatedMeshSceneNode(mesh);
+
+  winkyNode->setPosition(vector3df(0,5,0));
+
+  IAnimatedMeshSceneNode *groundNode = smgr->addAnimatedMeshSceneNode(groundMesh);
+
+  SKeyMap keyMap[8];
+  keyMap[0].Action = EKA_MOVE_FORWARD;
+  keyMap[0].KeyCode = KEY_UP;
+  keyMap[1].Action = EKA_MOVE_FORWARD;
+  keyMap[1].KeyCode = KEY_KEY_W;
+
+  keyMap[2].Action = EKA_MOVE_BACKWARD;
+  keyMap[2].KeyCode = KEY_DOWN;
+  keyMap[3].Action = EKA_MOVE_BACKWARD;
+  keyMap[3].KeyCode = KEY_KEY_S;
+
+  keyMap[4].Action = EKA_STRAFE_LEFT;
+  keyMap[4].KeyCode = KEY_LEFT;
+  keyMap[5].Action = EKA_STRAFE_LEFT;
+  keyMap[5].KeyCode = KEY_KEY_A;
+
+  keyMap[6].Action = EKA_STRAFE_RIGHT;
+  keyMap[6].KeyCode = KEY_RIGHT;
+  keyMap[7].Action = EKA_STRAFE_RIGHT;
+  keyMap[7].KeyCode = KEY_KEY_D;
+
+  //ICameraSceneNode *camera = smgr->addCameraSceneNodeFPS(nullptr, 100.0, 0.1, -1, keyMap, 8);
+  ICameraSceneNode *camera = smgr->addCameraSceneNode();
+
+  ILightSceneNode *light = smgr->addLightSceneNode(nullptr, vector3df(0,10,0));
+
+  camera->setPosition(vector3df(13,7,-13));
+  camera->setTarget(vector3df(0,0,0));
+
+  btCollisionShape *groundShape = new btStaticPlaneShape(btVector3(0,1,0), 1);
+  btDefaultMotionState *groundState =
+    new btDefaultMotionState(btTransform(
+        btQuaternion(0,0,0,1),
+        btVector3(0, -1, 0)));
+
+  btRigidBody::btRigidBodyConstructionInfo groundCI(0, groundState, groundShape, btVector3(0,0,0));
+  btRigidBody *groundBody = new btRigidBody(groundCI);
+
 
   MotionState *winkyState = new MotionState(winkyNode);
 
@@ -118,10 +158,13 @@ int main() {
   btRigidBody *winkyBody = new btRigidBody(winkyRigidBodyCI);
 
   world->addRigidBody(winkyBody);
+  world->addRigidBody(groundBody);
 
   while (device->run()) {
     world->stepSimulation(STEP, 10);
 
+    //camera->setPosition(winkyNode->getPosition() - vector3df(0,2,1));
+    camera->setTarget(winkyNode->getPosition());
     driver->beginScene(true, true, SColor(255,100,101,140));
 
     smgr->drawAll();
@@ -131,6 +174,13 @@ int main() {
   }
 
   device->drop();
+
+  delete winkyBody;
+  delete groundBody;
+  delete winkyState;
+  delete groundState;
+  delete winkyShape;
+  delete groundShape;
 
   return 0;
 }
