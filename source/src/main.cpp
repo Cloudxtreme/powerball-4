@@ -11,21 +11,29 @@ using namespace video;
 using namespace gui;
 using namespace io;
 
+namespace {
+  const float STEP = 1.0/1000.0;
+
+  const float WINKY_MASS = 1.0;
+}
+
 class MotionState : public btMotionState
 {
 protected:
-  btTransform m_InitialPosition;
   ISceneNode *node;
 
 public:
-  MotionState(const btTransform &initialPosition,
-              ISceneNode *node) : m_InitialPosition(initialPosition),
-                                  node(node) {
+  MotionState(ISceneNode *node) :
+    node(node) {
   }
 
   void getWorldTransform(btTransform &worldTrans) const
   {
-      worldTrans = m_InitialPosition;
+      vector3df pos = node->getPosition();
+      worldTrans.setIdentity();
+
+      worldTrans.setOrigin(toBullet(node->getPosition()));
+      worldTrans.setRotation(btQuaternion(pos.X, pos.Y, pos.Z));
   }
 
   void setWorldTransform(const btTransform &worldTrans)
@@ -39,17 +47,21 @@ public:
       this->node->setPosition(toIrrlicht(pos));
   }
 private:
-  vector3df toIrrlicht(btVector3 vec) {
+  vector3df toIrrlicht(btVector3 vec) const {
     return vector3df(vec.getX(), vec.getY(), vec.getZ());
   }
 
-  vector3df toIrrlicht(btQuaternion quat) {
+  vector3df toIrrlicht(btQuaternion quat) const {
     quaternion q = quaternion(quat.getX(), quat.getY(), quat.getZ(), quat.getW());
 
     vector3df euler;
     q.toEuler(euler);
     return euler;
   }
+
+   btVector3 toBullet(vector3df vec) const {
+     return btVector3(vec.X, vec.Y, vec.Z);
+   }
 };
 
 
@@ -70,6 +82,15 @@ int main() {
   btSequentialImpulseConstraintSolver *solver = new btSequentialImpulseConstraintSolver();
   world = new btDiscreteDynamicsWorld(dispatcher, broadPhase, solver, collisionConfiguration);
 
+  world->setGravity(btVector3(0, -9.81, 0));
+
+  btCollisionShape *winkyShape = new btSphereShape(1);
+
+  btDefaultMotionState *groundState =
+    new btDefaultMotionState(btTransform(
+        btQuaternion(0,0,0,1),
+        btVector3(0, -1, 0)));
+
   if (!device) return 1;
 
   device->setWindowCaption(L"Powerball");
@@ -86,7 +107,21 @@ int main() {
 
   IAnimatedMeshSceneNode *winkyNode = smgr->addAnimatedMeshSceneNode(mesh);
 
+  MotionState *winkyState = new MotionState(winkyNode);
+
+  btVector3 winkyInertia(0,0,0);
+  winkyShape->calculateLocalInertia(WINKY_MASS, winkyInertia);
+  btRigidBody::btRigidBodyConstructionInfo winkyRigidBodyCI(WINKY_MASS,
+                                                            winkyState,
+                                                            winkyShape,
+                                                            winkyInertia);
+  btRigidBody *winkyBody = new btRigidBody(winkyRigidBodyCI);
+
+  world->addRigidBody(winkyBody);
+
   while (device->run()) {
+    world->stepSimulation(STEP, 10);
+
     driver->beginScene(true, true, SColor(255,100,101,140));
 
     smgr->drawAll();
