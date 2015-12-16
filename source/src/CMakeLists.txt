@@ -1,4 +1,4 @@
-add_executable (powerball main.cpp)
+add_executable (powerball MACOSX_BUNDLE main.cpp)
 
 
 target_include_directories (powerball PUBLIC
