@@ -61,7 +61,7 @@ public:
   btVector3 getDirection() const { return direction; }
 
   btVector3 forwardsVector() const {
-    return btVector3(1,0,0);
+    return direction;
   }
 
 private:

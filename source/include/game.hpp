@@ -11,7 +11,7 @@ using namespace scene;
 using namespace video;
 
 namespace {
-  const float STEP = 1.0/1000.0;
+  const float STEP = 1.0/2000.0;
 
   const float WINKY_MASS = 1.0;
   const btVector3 GRAVITY(0,-20,0);
@@ -20,7 +20,7 @@ namespace {
 class Game : public IEventReceiver
 {
 public:
-  Game() : debugMode(false) {
+  Game() : debugMode(false), wireframe(false) {
     this->device = createDevice(
       video::EDT_OPENGL,
       dimension2d<u32>(1024, 768),
@@ -45,14 +45,14 @@ public:
 
     world->setGravity(GRAVITY);
 
-    IAnimatedMesh *groundMesh = smgr->getMesh("/Users/dylanmckay/assets/map.obj");
+    IMesh *groundMesh = smgr->getMesh("/Users/dylanmckay/assets/map.obj");
 
     if (!groundMesh) {
       device->drop();
       return;
     }
 
-    groundNode = smgr->addAnimatedMeshSceneNode(groundMesh);
+    groundNode = smgr->addMeshSceneNode(groundMesh);
     groundNode->setScale(vector3df(10,10,10));
     groundNode->setPosition(vector3df(0,-10,0));
     groundNode->setMaterialFlag(EMF_LIGHTING, false);
@@ -62,16 +62,33 @@ public:
     ILightSceneNode *light = smgr->addLightSceneNode(nullptr, vector3df(0,-100,0));
     smgr->addSkyDomeSceneNode(driver->getTexture("/Users/dylanmckay/assets/ngc346.jpg"));
 
-    groundShape = new btStaticPlaneShape(btVector3(0,1,0), 1);
-    btMotionState *groundState =
-      new btDefaultMotionState(btTransform(
-          btQuaternion(0,0,0,1),
-          btVector3(0, -1, 0)));
+    btTriangleMesh *physMesh = new btTriangleMesh();
 
-    btRigidBody::btRigidBodyConstructionInfo groundCI(0, groundState, groundShape, btVector3(0,0,0));
-    groundBody = new btRigidBody(groundCI);
-    groundBody->setFriction(1.0);
-    groundBody->setRollingFriction(1.0);
+    for(int j=0; j<groundMesh->getMeshBufferCount(); ++j) {
+      IMeshBuffer *buffer = groundMesh->getMeshBuffer(j);
+
+      int numIndices = buffer->getIndexCount();
+      const u16 *indices = buffer->getIndices();
+
+      assert(buffer->getIndexType() == EIT_16BIT);
+
+      // Build btTriangleMesh
+      for ( size_t i=0; i<numIndices; i+=3 )
+      {
+        const btVector3 &A = toBullet(buffer->getPosition(indices[i+0]));
+        const btVector3 &B = toBullet(buffer->getPosition(indices[i+1]));
+        const btVector3 &C = toBullet(buffer->getPosition(indices[i+2]));
+
+        bool removeDuplicateVertices = true;
+        physMesh->addTriangle( A, B, C, removeDuplicateVertices );
+      }
+    }
+
+    btCollisionShape *groundShape = new btBvhTriangleMeshShape(physMesh, true);
+    groundBody = new btRigidBody(0.0, new MotionState(groundNode), groundShape);
+
+    // groundBody->setFriction(1.0);
+    // groundBody->setRollingFriction(1.0);
 
     world->addRigidBody(groundBody);
 
@@ -151,6 +168,9 @@ public:
     case KEY_KEY_D:
       setDebug(!debugMode);
       return true;
+    case KEY_KEY_W:
+      wireframe = !wireframe;
+      groundNode->setMaterialFlag(EMF_WIREFRAME, wireframe);
     default:
       return false;
     }
@@ -172,5 +192,6 @@ private:
   Winky *winky;
 
   bool debugMode;
+  bool wireframe;
 };
 
