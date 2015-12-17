@@ -41,28 +41,41 @@ public:
   {
       if(this->node == nullptr) return;
 
-      btQuaternion rot = worldTrans.getRotation();
-
-
-      btVector3 pos = worldTrans.getOrigin();
-      this->node->setPosition(toIrrlicht(pos));
+      this->node->setPosition(toIrrlicht(worldTrans.getOrigin()));
+      this->node->setRotation(toIrrlicht(worldTrans.getRotation()));
   }
+
 private:
   vector3df toIrrlicht(btVector3 vec) const {
     return vector3df(vec.getX(), vec.getY(), vec.getZ());
   }
 
   vector3df toIrrlicht(btQuaternion quat) const {
-    quaternion q = quaternion(quat.getX(), quat.getY(), quat.getZ(), quat.getW());
-
-    vector3df euler;
-    q.toEuler(euler);
-    return euler;
+    btVector3 euler;
+    quaternionToEuler(quat, euler);
+    return toIrrlicht(euler);
   }
 
-   btVector3 toBullet(vector3df vec) const {
-     return btVector3(vec.X, vec.Y, vec.Z);
-   }
+  btVector3 toBullet(vector3df vec) const {
+    return btVector3(vec.X, vec.Y, vec.Z);
+  }
+
+  // Converts a quaternion to an euler angle
+  void quaternionToEuler(const btQuaternion &quat, btVector3 &euler) const {
+    btScalar W = quat.getW();
+    btScalar X = quat.getX();
+    btScalar Y = quat.getY();
+    btScalar Z = quat.getZ();
+    float WSquared = W * W;
+    float XSquared = X * X;
+    float YSquared = Y * Y;
+    float ZSquared = Z * Z;
+
+    euler.setX(atan2f(2.0f * (Y * Z + X * W), -XSquared - YSquared + ZSquared + WSquared));
+    euler.setY(asinf(-2.0f * (X * Z - Y * W)));
+    euler.setZ(atan2f(2.0f * (X * Y + Z * W), XSquared - YSquared - ZSquared + WSquared));
+    euler *= core::RADTODEG;
+  }
 };
 
 class Game : public IEventReceiver
@@ -106,8 +119,6 @@ public:
     winkyNode = smgr->addAnimatedMeshSceneNode(mesh);
     winkyNode->setPosition(vector3df(0,5,0));
 
-    //winkyNode->setMaterialTexture(0, driver->getTexture("/Users/dylanmckay/Desktop/winky.bmp"));
-
     groundNode = smgr->addAnimatedMeshSceneNode(groundMesh);
 
     camera = smgr->addCameraSceneNode();
@@ -125,6 +136,8 @@ public:
 
     btRigidBody::btRigidBodyConstructionInfo groundCI(0, groundState, groundShape, btVector3(0,0,0));
     groundBody = new btRigidBody(groundCI);
+    groundBody->setFriction(1.0);
+    groundBody->setRollingFriction(1.0);
 
 
     btMotionState *winkyState = new MotionState(winkyNode);
@@ -135,9 +148,9 @@ public:
                                                               winkyState,
                                                               winkyShape,
                                                               winkyInertia);
-    winkyRigidBodyCI.m_friction = 50.0;
-
     winkyBody = new btRigidBody(winkyRigidBodyCI);
+    winkyBody->setFriction(1.0);
+    winkyBody->setRollingFriction(1.0);
 
     world->addRigidBody(winkyBody);
     world->addRigidBody(groundBody);
@@ -158,7 +171,7 @@ public:
 
   void run() {
     while (device->run()) {
-      world->stepSimulation(STEP, 10);
+      world->stepSimulation(STEP);
 
       //camera->setPosition(winkyNode->getPosition() - vector3df(0,2,1));
       camera->setTarget(winkyNode->getPosition());
@@ -184,7 +197,7 @@ public:
 
     double accelerationSize = 50.0;
 
-    btVector3 forwardVector = btVector3(1,1,1);
+    btVector3 forwardVector = btVector3(0,0,1);
     btVector3 leftVector = btVector3(1,0,0);
 
     switch (event.Key) {
