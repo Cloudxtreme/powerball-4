@@ -18,7 +18,7 @@ public:
   {
     shape = new btSphereShape(1);
 
-    IAnimatedMesh *mesh = smgr->getMesh("/Users/dylanmckay/Desktop/winky.3ds");
+    IAnimatedMesh *mesh = smgr->getMesh("/Users/dylanmckay/assets/winky.3ds");
     node = smgr->addAnimatedMeshSceneNode(mesh);
     node->setPosition(vector3df(0,5,0));
     node->setMaterialFlag(EMF_LIGHTING, false);
@@ -61,7 +61,7 @@ public:
   btVector3 getDirection() const { return direction; }
 
   btVector3 forwardsVector() const {
-    return btVector3(0,0,1);
+    return btVector3(1,0,0);
   }
 
 private:

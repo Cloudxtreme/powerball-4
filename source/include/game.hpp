@@ -20,7 +20,7 @@ namespace {
 class Game : public IEventReceiver
 {
 public:
-  Game() {
+  Game() : debugMode(false) {
     this->device = createDevice(
       video::EDT_OPENGL,
       dimension2d<u32>(1024, 768),
@@ -45,7 +45,7 @@ public:
 
     world->setGravity(GRAVITY);
 
-    IAnimatedMesh *groundMesh = smgr->getMesh("/Users/dylanmckay/Desktop/map.3ds");
+    IAnimatedMesh *groundMesh = smgr->getMesh("/Users/dylanmckay/assets/map.obj");
 
     if (!groundMesh) {
       device->drop();
@@ -53,15 +53,14 @@ public:
     }
 
     groundNode = smgr->addAnimatedMeshSceneNode(groundMesh);
-    groundNode->setMaterialTexture(0, driver->getTexture("/Users/dylanmckay/Desktop/brick.jpg"));
+    groundNode->setScale(vector3df(10,10,10));
+    groundNode->setPosition(vector3df(0,-10,0));
+    groundNode->setMaterialFlag(EMF_LIGHTING, false);
 
-    camera = smgr->addCameraSceneNode();
+    setDebug(false);
 
-    ILightSceneNode *light = smgr->addLightSceneNode(nullptr, vector3df(0,10,0));
-    smgr->addSkyDomeSceneNode(driver->getTexture("/Users/dylanmckay/Desktop/ngc346.jpg"));
-
-    camera->setPosition(vector3df(13,7,-13));
-    camera->setTarget(vector3df(0,0,0));
+    ILightSceneNode *light = smgr->addLightSceneNode(nullptr, vector3df(0,-100,0));
+    smgr->addSkyDomeSceneNode(driver->getTexture("/Users/dylanmckay/assets/ngc346.jpg"));
 
     groundShape = new btStaticPlaneShape(btVector3(0,1,0), 1);
     btMotionState *groundState =
@@ -92,7 +91,9 @@ public:
     while (device->run()) {
       world->stepSimulation(STEP);
 
-      winky->positionCamera(camera);
+      if (!debugMode) {
+        winky->positionCamera(camera);
+      }
 
       driver->beginScene(true, true, SColor(255,100,101,140));
 
@@ -100,6 +101,19 @@ public:
 
       driver->endScene();
     }
+  }
+
+  void setDebug(bool debug) {
+    debugMode = debug;
+
+    if (debugMode) {
+      camera = smgr->addCameraSceneNodeFPS(nullptr, 100.0f, 0.1);
+    } else {
+      camera = smgr->addCameraSceneNode();
+    }
+
+    camera->setPosition(vector3df(13,7,-13));
+    camera->setTarget(vector3df(0,0,0));
   }
 
   bool OnEvent(const SEvent &event) {
@@ -121,10 +135,21 @@ public:
 
     switch (event.Key) {
     case KEY_UP:
-      winky->moveForward();
-      return true;
+      if (!debugMode) {
+        winky->moveForward();
+        return true;
+      } else {
+        return false;
+      }
     case KEY_DOWN:
-      winky->moveBackward();
+      if (!debugMode) {
+        winky->moveBackward();
+        return true;
+      } else {
+        return false;
+      }
+    case KEY_KEY_D:
+      setDebug(!debugMode);
       return true;
     default:
       return false;
@@ -145,5 +170,7 @@ private:
   btRigidBody *groundBody;
 
   Winky *winky;
+
+  bool debugMode;
 };
 
