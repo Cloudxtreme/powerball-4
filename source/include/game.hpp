@@ -3,6 +3,8 @@
 #include <irrlicht.h>
 #include <btBulletDynamicsCommon.h>
 
+#include "Winky.hpp"
+
 using namespace irr;
 using namespace core;
 using namespace scene;
@@ -43,19 +45,12 @@ public:
 
     world->setGravity(GRAVITY);
 
-    this->winkyShape = new btSphereShape(1);
-
-    IAnimatedMesh *mesh = smgr->getMesh("/Users/dylanmckay/Desktop/winky.3ds");
     IAnimatedMesh *groundMesh = smgr->getMesh("/Users/dylanmckay/Desktop/map.3ds");
 
-    if (!mesh || !groundMesh) {
+    if (!groundMesh) {
       device->drop();
       return;
     }
-
-    winkyNode = smgr->addAnimatedMeshSceneNode(mesh);
-    winkyNode->setPosition(vector3df(0,5,0));
-    winkyNode->setMaterialFlag(EMF_LIGHTING, false);
 
     groundNode = smgr->addAnimatedMeshSceneNode(groundMesh);
     groundNode->setMaterialTexture(0, driver->getTexture("/Users/dylanmckay/Desktop/brick.jpg"));
@@ -79,33 +74,17 @@ public:
     groundBody->setFriction(1.0);
     groundBody->setRollingFriction(1.0);
 
-
-    btMotionState *winkyState = new MotionState(winkyNode);
-
-    btVector3 winkyInertia(0,0,0);
-    winkyShape->calculateLocalInertia(WINKY_MASS, winkyInertia);
-    btRigidBody::btRigidBodyConstructionInfo winkyRigidBodyCI(WINKY_MASS,
-                                                              winkyState,
-                                                              winkyShape,
-                                                              winkyInertia);
-    winkyBody = new btRigidBody(winkyRigidBodyCI);
-    winkyBody->setFriction(1.0);
-    winkyBody->setRollingFriction(1.0);
-
-    world->addRigidBody(winkyBody);
     world->addRigidBody(groundBody);
+
+    this->winky = new Winky(smgr, world);
   }
 
   ~Game() {
     device->drop();
 
-    delete winkyBody->getMotionState();
+    delete winky;
     delete groundBody->getMotionState();
-
-    delete winkyBody;
     delete groundBody;
-
-    delete winkyShape;
     delete groundShape;
   }
 
@@ -113,8 +92,7 @@ public:
     while (device->run()) {
       world->stepSimulation(STEP);
 
-      camera->setPosition(winkyNode->getPosition() - vector3df(0,-2,4));
-      camera->setTarget(winkyNode->getPosition());
+      winky->positionCamera(camera);
 
       driver->beginScene(true, true, SColor(255,100,101,140));
 
@@ -143,18 +121,14 @@ public:
 
     switch (event.Key) {
     case KEY_UP:
-      accelerate(accelerationSize * forwardVector);
+      winky->moveForward();
       return true;
     case KEY_DOWN:
-      accelerate(accelerationSize * -forwardVector);
+      winky->moveBackward();
       return true;
     default:
       return false;
     }
-  }
-
-  void accelerate(btVector3 vec) {
-    this->winkyBody->applyCentralImpulse(vec);
   }
 
 private:
@@ -162,14 +136,14 @@ private:
   IVideoDriver *driver;
   ISceneManager *smgr;
   ICameraSceneNode *camera;
-  ISceneNode *winkyNode;
+
   ISceneNode *groundNode;
 
   btDiscreteDynamicsWorld *world;
 
-  btCollisionShape *winkyShape;
   btCollisionShape *groundShape;
-  btRigidBody *winkyBody;
   btRigidBody *groundBody;
+
+  Winky *winky;
 };
 
