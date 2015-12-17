@@ -118,12 +118,15 @@ public:
 
     winkyNode = smgr->addAnimatedMeshSceneNode(mesh);
     winkyNode->setPosition(vector3df(0,5,0));
+    winkyNode->setMaterialFlag(EMF_LIGHTING, false);
 
     groundNode = smgr->addAnimatedMeshSceneNode(groundMesh);
+    groundNode->setMaterialTexture(0, driver->getTexture("/Users/dylanmckay/Desktop/brick.jpg"));
 
     camera = smgr->addCameraSceneNode();
 
     ILightSceneNode *light = smgr->addLightSceneNode(nullptr, vector3df(0,10,0));
+    smgr->addSkyDomeSceneNode(driver->getTexture("/Users/dylanmckay/Desktop/ngc346.jpg"));
 
     camera->setPosition(vector3df(13,7,-13));
     camera->setTarget(vector3df(0,0,0));
@@ -173,8 +176,9 @@ public:
     while (device->run()) {
       world->stepSimulation(STEP);
 
-      //camera->setPosition(winkyNode->getPosition() - vector3df(0,2,1));
+      camera->setPosition(winkyNode->getPosition() - vector3df(0,-2,4));
       camera->setTarget(winkyNode->getPosition());
+
       driver->beginScene(true, true, SColor(255,100,101,140));
 
       smgr->drawAll();
