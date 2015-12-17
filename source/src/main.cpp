@@ -18,6 +18,40 @@ namespace {
   const btVector3 GRAVITY(0,-20,0);
 }
 
+namespace
+{
+  // Converts a quaternion to an euler angle
+  void quaternionToEuler(const btQuaternion &quat, btVector3 &euler) {
+    btScalar W = quat.getW();
+    btScalar X = quat.getX();
+    btScalar Y = quat.getY();
+    btScalar Z = quat.getZ();
+    float WSquared = W * W;
+    float XSquared = X * X;
+    float YSquared = Y * Y;
+    float ZSquared = Z * Z;
+
+    euler.setX(atan2f(2.0f * (Y * Z + X * W), -XSquared - YSquared + ZSquared + WSquared));
+    euler.setY(asinf(-2.0f * (X * Z - Y * W)));
+    euler.setZ(atan2f(2.0f * (X * Y + Z * W), XSquared - YSquared - ZSquared + WSquared));
+    euler *= core::RADTODEG;
+  }
+
+  vector3df toIrrlicht(btVector3 vec) {
+    return vector3df(vec.getX(), vec.getY(), vec.getZ());
+  }
+
+  vector3df toIrrlicht(btQuaternion quat) {
+    btVector3 euler;
+    quaternionToEuler(quat, euler);
+    return toIrrlicht(euler);
+  }
+
+  btVector3 toBullet(vector3df vec) {
+    return btVector3(vec.X, vec.Y, vec.Z);
+  }
+}
+
 class MotionState : public btMotionState
 {
 protected:
@@ -43,38 +77,6 @@ public:
 
       this->node->setPosition(toIrrlicht(worldTrans.getOrigin()));
       this->node->setRotation(toIrrlicht(worldTrans.getRotation()));
-  }
-
-private:
-  vector3df toIrrlicht(btVector3 vec) const {
-    return vector3df(vec.getX(), vec.getY(), vec.getZ());
-  }
-
-  vector3df toIrrlicht(btQuaternion quat) const {
-    btVector3 euler;
-    quaternionToEuler(quat, euler);
-    return toIrrlicht(euler);
-  }
-
-  btVector3 toBullet(vector3df vec) const {
-    return btVector3(vec.X, vec.Y, vec.Z);
-  }
-
-  // Converts a quaternion to an euler angle
-  void quaternionToEuler(const btQuaternion &quat, btVector3 &euler) const {
-    btScalar W = quat.getW();
-    btScalar X = quat.getX();
-    btScalar Y = quat.getY();
-    btScalar Z = quat.getZ();
-    float WSquared = W * W;
-    float XSquared = X * X;
-    float YSquared = Y * Y;
-    float ZSquared = Z * Z;
-
-    euler.setX(atan2f(2.0f * (Y * Z + X * W), -XSquared - YSquared + ZSquared + WSquared));
-    euler.setY(asinf(-2.0f * (X * Z - Y * W)));
-    euler.setZ(atan2f(2.0f * (X * Y + Z * W), XSquared - YSquared - ZSquared + WSquared));
-    euler *= core::RADTODEG;
   }
 };
 
@@ -201,7 +203,7 @@ public:
 
     double accelerationSize = 50.0;
 
-    btVector3 forwardVector = btVector3(0,0,1);
+    btVector3 forwardVector = toBullet(camera->getTarget());
     btVector3 leftVector = btVector3(1,0,0);
 
     switch (event.Key) {
@@ -217,7 +219,7 @@ public:
   }
 
   void accelerate(btVector3 vec) {
-    this->winkyBody->applyTorqueImpulse(vec);
+    this->winkyBody->applyCentralImpulse(vec);
   }
 
 private:
